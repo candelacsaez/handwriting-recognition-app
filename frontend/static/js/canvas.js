@@ -3,27 +3,24 @@ class DrawingCanvas {
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext('2d');
         this.isDrawing = false;
-        this.strokes = []; // Stocke tous les traits
-        this.currentStroke = []; // Trait en cours
+        this.strokes = [];
+        this.currentStroke = [];
         this.lastPoint = null;
         this.lastTime = null;
+        this.recognitionTimeout = null;
+        this.recognitionDelay = 800; // Délai en ms après avoir arrêté d'écrire
         
         this.setupCanvas();
         this.setupEventListeners();
     }
     
     setupCanvas() {
-        // Taille du canvas
         this.canvas.width = 700;
         this.canvas.height = 400;
-        
-        // Style du tracé
         this.ctx.strokeStyle = '#333';
         this.ctx.lineWidth = 3;
         this.ctx.lineCap = 'round';
         this.ctx.lineJoin = 'round';
-        
-        // Fond blanc
         this.ctx.fillStyle = 'white';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     }
@@ -66,7 +63,11 @@ class DrawingCanvas {
         this.lastTime = point.time;
         this.currentStroke = [point];
         
-        // Dessiner le point de départ
+        // Annuler la reconnaissance en attente
+        if (this.recognitionTimeout) {
+            clearTimeout(this.recognitionTimeout);
+        }
+        
         this.ctx.beginPath();
         this.ctx.arc(point.x, point.y, 1.5, 0, Math.PI * 2);
         this.ctx.fill();
@@ -76,13 +77,10 @@ class DrawingCanvas {
         if (!this.isDrawing) return;
         
         const point = this.getCoordinates(event);
-        
-        // Calculer les différences (format OnlineHTR)
         const dx = point.x - this.lastPoint.x;
         const dy = point.y - this.lastPoint.y;
         const dt = point.time - this.lastTime;
         
-        // Stocker le point avec ses métadonnées
         this.currentStroke.push({
             x: point.x,
             y: point.y,
@@ -92,7 +90,6 @@ class DrawingCanvas {
             dt: dt
         });
         
-        // Dessiner la ligne
         this.ctx.beginPath();
         this.ctx.moveTo(this.lastPoint.x, this.lastPoint.y);
         this.ctx.lineTo(point.x, point.y);
@@ -106,9 +103,60 @@ class DrawingCanvas {
         if (this.isDrawing && this.currentStroke.length > 0) {
             this.strokes.push([...this.currentStroke]);
             this.currentStroke = [];
+            
+            // ⚡ RECONNAISSANCE AUTOMATIQUE après délai
+            this.scheduleRecognition();
         }
         this.isDrawing = false;
         this.lastPoint = null;
+    }
+    
+    scheduleRecognition() {
+        // Annuler la reconnaissance précédente
+        if (this.recognitionTimeout) {
+            clearTimeout(this.recognitionTimeout);
+        }
+        
+        // Programmer une nouvelle reconnaissance
+        this.recognitionTimeout = setTimeout(() => {
+            this.recognize();
+        }, this.recognitionDelay);
+    }
+    
+    async recognize() {
+        if (this.strokes.length === 0) return;
+        
+        const resultDiv = document.getElementById('result');
+        const confidenceDiv = document.getElementById('confidence');
+        
+        resultDiv.textContent = '⏳ Reconnaissance...';
+        resultDiv.className = 'result-text recognizing';
+        confidenceDiv.textContent = '';
+        
+        try {
+            const response = await fetch('/api/predict', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ strokes: this.strokes })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                resultDiv.textContent = `"${data.prediction}"`;
+                resultDiv.className = 'result-text success';
+                confidenceDiv.textContent = `Confiance: ${(data.confidence * 100).toFixed(1)}%`;
+            } else {
+                resultDiv.textContent = '❌ Erreur: ' + data.error;
+                resultDiv.className = 'result-text error';
+            }
+        } catch (error) {
+            resultDiv.textContent = '❌ Erreur de connexion';
+            resultDiv.className = 'result-text error';
+            console.error('Error:', error);
+        }
     }
     
     clear() {
@@ -116,6 +164,11 @@ class DrawingCanvas {
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         this.strokes = [];
         this.currentStroke = [];
+        
+        // Annuler la reconnaissance en attente
+        if (this.recognitionTimeout) {
+            clearTimeout(this.recognitionTimeout);
+        }
     }
     
     getStrokes() {
@@ -132,46 +185,23 @@ const confidenceDiv = document.getElementById('confidence');
 document.getElementById('clearBtn').addEventListener('click', () => {
     drawingCanvas.clear();
     resultDiv.textContent = 'Écrivez quelque chose...';
+    resultDiv.className = 'result-text';
     confidenceDiv.textContent = '';
 });
 
-// Bouton Reconnaître
-document.getElementById('recognizeBtn').addEventListener('click', async () => {
-    const strokes = drawingCanvas.getStrokes();
-    
-    if (strokes.length === 0) {
-        resultDiv.textContent = '❌ Aucun tracé détecté';
-        return;
-    }
-    
-    resultDiv.textContent = '⏳ Reconnaissance en cours...';
-    confidenceDiv.textContent = '';
-    
-    try {
-        const response = await fetch('/api/predict', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ strokes: strokes })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            resultDiv.textContent = `"${data.prediction}"`;
-            confidenceDiv.textContent = `Confiance: ${(data.confidence * 100).toFixed(1)}%`;
-        } else {
-            resultDiv.textContent = '❌ Erreur: ' + data.error;
-        }
-    } catch (error) {
-        resultDiv.textContent = '❌ Erreur de connexion au serveur';
-        console.error('Error:', error);
-    }
+// Bouton Reconnaître manuel (optionnel, garde-le au cas où)
+document.getElementById('recognizeBtn').addEventListener('click', () => {
+    drawingCanvas.recognize();
 });
 
 // Test de connexion au démarrage
 fetch('/api/health')
     .then(res => res.json())
-    .then(data => console.log('✅ Backend connecté:', data))
-    .catch(err => console.error('❌ Backend non disponible:', err));
+    .then(data => {
+        console.log('✅ Backend connecté:', data);
+        resultDiv.textContent = '✅ Prêt ! Écrivez quelque chose...';
+    })
+    .catch(err => {
+        console.error('❌ Backend non disponible:', err);
+        resultDiv.textContent = '❌ Serveur non disponible';
+    });

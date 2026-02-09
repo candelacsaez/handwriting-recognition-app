@@ -8,7 +8,12 @@
 </head>
 <body>
     <div class="container">
-        <h1>✍️ Reconnaissance d'écriture manuscrite</h1>
+        <h1>✍️ Reconnaissance d'écriture en temps réel</h1>
+        
+        <div class="status-bar">
+            <span class="status-indicator">🟢</span>
+            <span>Mode temps réel activé</span>
+        </div>
         
         <div class="canvas-container">
             <canvas id="drawingCanvas"></canvas>
@@ -16,17 +21,18 @@
         
         <div class="controls">
             <button id="clearBtn" class="btn btn-clear">🗑️ Effacer</button>
-            <button id="recognizeBtn" class="btn btn-primary">🔍 Reconnaître</button>
+            <button id="recognizeBtn" class="btn btn-secondary">🔄 Reconnaître maintenant</button>
         </div>
         
         <div class="result-container">
             <h2>Résultat :</h2>
-            <div id="result" class="result-text">Écrivez quelque chose...</div>
+            <div id="result" class="result-text">Chargement...</div>
             <div id="confidence" class="confidence"></div>
         </div>
         
         <div class="info">
-            <p>💡 <strong>Instructions :</strong> Écrivez avec votre stylet sur le canvas, puis cliquez sur "Reconnaître"</p>
+            <p>💡 <strong>Mode temps réel :</strong> La reconnaissance se fait automatiquement 800ms après avoir arrêté d'écrire</p>
+            <p>📱 Compatible tablette et stylet</p>
         </div>
     </div>
     
