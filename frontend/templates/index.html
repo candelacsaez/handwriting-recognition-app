@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reconnaissance d'écriture en temps réel</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>✍️ Reconnaissance d'écriture manuscrite</h1>
+        
+        <div class="canvas-container">
+            <canvas id="drawingCanvas"></canvas>
+        </div>
+        
+        <div class="controls">
+            <button id="clearBtn" class="btn btn-clear">🗑️ Effacer</button>
+            <button id="recognizeBtn" class="btn btn-primary">🔍 Reconnaître</button>
+        </div>
+        
+        <div class="result-container">
+            <h2>Résultat :</h2>
+            <div id="result" class="result-text">Écrivez quelque chose...</div>
+            <div id="confidence" class="confidence"></div>
+        </div>
+        
+        <div class="info">
+            <p>💡 <strong>Instructions :</strong> Écrivez avec votre stylet sur le canvas, puis cliquez sur "Reconnaître"</p>
+        </div>
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/canvas.js') }}"></script>
+</body>
+</html>
